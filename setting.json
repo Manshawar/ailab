@@ -1,0 +1,22 @@
+[
+  {
+    "provider": "maas",
+    "base_url": "https://maas-coding-api.cn-huabei-1.xf-yun.com/anthropic",
+    "api": "anthropic-messages",
+    "api_key": "fca502c240708db14426702f65f9f2dd:OGYyOTJiZmNlNjM1YjY0N2M2NzkyZWU4",
+    "model": {
+      "id": "astron-code-latest",
+      "name": "astron-code-latest"
+    }
+  },
+  {
+    "provider": "kimi",
+    "base_url": "https://kimi.a7m.com.cn",
+    "api": "anthropic-messages",
+    "api_key": "sk-cKSenEHkzsCMgEHvLv9lids5zktzX28niWht6y88xGMSyX9s",
+    "model": {
+      "id": "kimi-for-coding",
+      "name": "kimi-for-coding"
+    }
+  }
+]
