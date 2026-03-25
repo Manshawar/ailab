@@ -1,0 +1,16 @@
+{
+  "name": "@ailab/core",
+  "version": "1.0.0",
+  "description": "核心共享模块",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {}
+}

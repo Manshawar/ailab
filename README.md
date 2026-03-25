@@ -1,120 +1,49 @@
-# Clawbot Lite
+# Ailab
 
-一个用于学习 AI 开发的简单 Agent 框架。
+AI 学习仓库 - 用于实现和实验各种 AI 技术（RAG、Agent 等）
 
-## 项目简介
-
-Clawbot Lite 是一个轻量级的 AI Agent 框架，帮助前端开发者快速入门 AI 应用开发。
-
-## 功能特性
-
-- 🤖 支持 Anthropic Claude API
-- 🔧 可扩展的工具系统
-- 💬 命令行交互界面
-- 📝 TypeScript 类型安全
-
-## 项目结构
+## 结构
 
 ```
-clawbot-lite/
-├── src/
-│   ├── index.ts        # 入口（CLI）
-│   ├── agent.ts        # Agent 核心
-│   ├── llm.ts          # 模型调用
-│   ├── tools.ts        # 工具定义
-│   └── types.ts        # 类型定义
-├── package.json
-├── tsconfig.json
-├── tsup.config.ts
-└── .env.example
+ailab/
+├── package.json           # root 配置，共享 devDependencies
+├── pnpm-workspace.yaml    # pnpm workspace 配置
+├── tsconfig.base.json     # 共享 tsconfig
+├── .eslintrc.cjs          # 共享 eslint 配置
+│
+└── packages/
+    ├── core/              # 核心共享模块（可选）
+    ├── rag/               # RAG 实现
+    └── agent/             # Agent 实现
 ```
 
-## 快速开始
-
-### 环境要求
-
-- Node.js >= 18.0.0
-- pnpm
-
-### 安装依赖
+## 使用
 
 ```bash
+# 安装依赖
 pnpm install
-```
 
-### 配置环境变量
-
-```bash
-cp .env.example .env
-# 编辑 .env 文件，填入你的 API Key
-```
-
-### 开发模式
-
-```bash
-pnpm dev
-```
-
-### 构建
-
-```bash
+# 构建所有包
 pnpm build
-```
-
-### 运行
-
-```bash
-pnpm start
-```
-
-## 核心模块说明
-
-### index.ts
-CLI 入口，处理命令行参数和用户交互。
-
-### agent.ts
-Agent 核心逻辑，负责：
-- 管理对话上下文
-- 调用 LLM 模型
-- 执行工具调用
-- 处理响应流程
-
-### llm.ts
-LLM 模型调用封装，支持：
-- Anthropic Claude API
-- 流式响应
-- 错误处理
-
-### tools.ts
-工具定义模块，包含：
-- 工具接口定义
-- 内置工具实现
-- 工具注册机制
-
-### types.ts
-TypeScript 类型定义，确保类型安全。
-
-## 开发指南
-
-### 代码规范
-
-```bash
-# 检查代码规范
-pnpm lint
-
-# 自动修复
-pnpm lint:fix
 
 # 类型检查
 pnpm typecheck
+
+# 代码检查
+pnpm lint
+
+# 清理
+pnpm clean
 ```
 
-### 添加新工具
+## 添加新项目
 
-1. 在 `tools.ts` 中定义工具
-2. 实现工具执行逻辑
-3. 在 Agent 中注册工具
+1. 在 `packages/` 下创建新文件夹
+2. 创建 `package.json` 和 `tsconfig.json`
+3. 需要时通过 `workspace:*` 引用其他包
 
-## License
+## 依赖管理
 
-MIT
+- **共享工具**（typescript, eslint）→ 放 root `package.json`
+- **项目特有依赖**（axios, zod 等）→ 放各自 `package.json`
+- **包间引用** → 使用 `"workspace:*"`
