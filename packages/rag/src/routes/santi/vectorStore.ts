@@ -9,11 +9,11 @@ export interface Chunk {
 }
 export class VectorStore {
   private chunks: Chunk[] = [];
-  private chunkSize = 1000;
+  private chunkSize = 500;
   private readonly sourceDir: string;
   private readonly batchSize = 5;
   private readonly concurrency = 5;
-  private readonly overlap = 200;
+  private readonly overlap = 100;
   constructor(sourceDir: string) {
     this.sourceDir = sourceDir;
     this.loadFromDirectory();
@@ -117,6 +117,7 @@ export class VectorStore {
       this.concurrency,
       async (batch, batchIndex) => {
         const texts = batch.map((item) => item.text);
+        return 
         const res = await embedding.embedBatch(texts);
         completedBatches += 1;
         console.log(

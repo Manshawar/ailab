@@ -1,6 +1,11 @@
 import express from "express";
 import { basicRouter } from "./routes/basic/index.js";
 import { santiRouter } from "./routes/santi/index.js";
+import { FileWatcher } from "./helper/fileWatcher.js";
+import path from "path";
+
+const watchPath = path.join(process.cwd(), "docs");
+new FileWatcher(watchPath);
 
 const app = express();
 app.use(express.json());
