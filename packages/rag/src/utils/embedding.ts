@@ -3,90 +3,48 @@ export type EmbeddingVector = number[];
 
 export const OLLAMA_DEFAULT_BASE_URL = "http://localhost:11434";
 
-/** basic 路由默认嵌入模型 */
-export const OLLAMA_MODEL_BASIC = "bge-m3:latest";
-
 /** 三体 RAG 默认嵌入模型 */
-export const OLLAMA_MODEL_SANTI = "qwen3-embedding:latest";
+export const OLLAMA_MODEL_EMBEDDING = "qwen3-embedding:latest";
 
-export type OllamaEmbedderOptions = {
+/** 当前进程实际用于缓存校验的嵌入模型名（与 `embedText` 一致） */
+export function getEmbedModel(): string {
+  return process.env.OLLAMA_EMBEDDING_MODEL ?? OLLAMA_MODEL_EMBEDDING;
+}
+
+export type EmbedOptions = {
   baseUrl?: string;
   model?: string;
 };
 
-function normalizeWhitespace(text: string): string {
-  return text.replace(/\s+/g, " ").trim();
-}
-
 /**
- * 通过本地 Ollama 的 `/api/embed` 生成文本向量，带进程内缓存。
+ * 调用本地 Ollama `/api/embed` 对单段文本生成向量。
  */
-export class OllamaEmbedder {
-  private cache = new Map<string, EmbeddingVector>();
+export async function embedText(
+  text: string,
+  options?: EmbedOptions
+): Promise<EmbeddingVector> {
+  const baseUrl = (
+    options?.baseUrl ??
+    process.env.OLLAMA_BASE_URL ??
+    OLLAMA_DEFAULT_BASE_URL
+  ).replace(/\/$/, "");
+  const model = options?.model ?? getEmbedModel();
 
-  constructor(
-    private baseUrl: string = OLLAMA_DEFAULT_BASE_URL,
-    private model: string = OLLAMA_MODEL_BASIC,
-  ) {}
+  const res = await fetch(`${baseUrl}/api/embed`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, input: text }),
+  });
 
-  async embed(text: string): Promise<EmbeddingVector> {
-    const cleaned = normalizeWhitespace(text);
-    const cached = this.cache.get(cleaned);
-    if (cached) {
-      return cached;
-    }
-
-    const res = await fetch(`${this.baseUrl}/api/embed`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: this.model, input: cleaned }),
-    });
-    const data = (await res.json()) as {
-      embeddings?: EmbeddingVector[] | EmbeddingVector;
-    };
-    const embedding = Array.isArray(data.embeddings?.[0])
-      ? (data.embeddings as EmbeddingVector[])[0]
-      : (data.embeddings as EmbeddingVector);
-
-    this.cache.set(cleaned, embedding);
-    return embedding;
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`Ollama embed failed: ${res.status} ${body}`);
   }
 
-  async embedBatch(texts: string[]): Promise<EmbeddingVector[]> {
-    const cleaned = texts.map((t) => normalizeWhitespace(t));
-    const uncached = cleaned.filter((text, index, arr) => {
-      return !this.cache.has(text) && arr.indexOf(text) === index;
-    });
-
-    if (uncached.length > 0) {
-      const res = await fetch(`${this.baseUrl}/api/embed`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: this.model, input: uncached }),
-      });
-      const data = (await res.json()) as { embeddings: EmbeddingVector[] };
-
-      uncached.forEach((text, i) => {
-        this.cache.set(text, data.embeddings[i]);
-      });
-    }
-
-    return cleaned.map((text) => this.cache.get(text)!);
+  const data = (await res.json()) as { embeddings?: number[][] };
+  const vec = data.embeddings?.[0];
+  if (!vec?.length) {
+    throw new Error("Ollama embed: empty embeddings");
   }
-}
-
-/** 通用构造：可覆盖 baseUrl / model */
-export function createOllamaEmbedder(options?: OllamaEmbedderOptions): OllamaEmbedder {
-  return new OllamaEmbedder(
-    options?.baseUrl ?? OLLAMA_DEFAULT_BASE_URL,
-    options?.model ?? OLLAMA_MODEL_BASIC,
-  );
-}
-
-export function createBasicEmbedder(baseUrl?: string): OllamaEmbedder {
-  return new OllamaEmbedder(baseUrl ?? OLLAMA_DEFAULT_BASE_URL, OLLAMA_MODEL_BASIC);
-}
-
-export function createSantiEmbedder(baseUrl?: string): OllamaEmbedder {
-  return new OllamaEmbedder(baseUrl ?? OLLAMA_DEFAULT_BASE_URL, OLLAMA_MODEL_SANTI);
+  return vec;
 }

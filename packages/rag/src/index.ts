@@ -1,5 +1,4 @@
 import express from "express";
-import { basicRouter } from "./routes/basic/index.js";
 import { santiRouter } from "./routes/santi/index.js";
 import { FileWatcher } from "./helper/fileWatcher.js";
 import path from "path";
@@ -10,7 +9,6 @@ new FileWatcher(watchPath);
 const app = express();
 app.use(express.json());
 
-app.use("/basic", basicRouter);
 app.use("/santi", santiRouter);
 
 app.listen(3000, () => {
