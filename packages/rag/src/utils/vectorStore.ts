@@ -1,12 +1,14 @@
 import * as fs from "fs";
 import * as path from "path";
-import { Embedding } from "./embedding";
+import { createSantiEmbedder } from "./embedding.js";
+
 export interface Chunk {
   id: string;
   text: string;
   embedding: number[];
   source: string;
 }
+
 export class VectorStore {
   private chunks: Chunk[] = [];
   private chunkSize = 500;
@@ -14,22 +16,23 @@ export class VectorStore {
   private readonly batchSize = 5;
   private readonly concurrency = 5;
   private readonly overlap = 100;
+
   constructor(sourceDir: string) {
     this.sourceDir = sourceDir;
     this.loadFromDirectory();
   }
+
   private listSourceFiles(dir: string): string[] {
     if (!fs.existsSync(dir)) {
       return [];
     }
 
-    const filePaths = fs
+    return fs
       .readdirSync(dir)
       .filter((fileName) => fileName.endsWith(".txt") || fileName.endsWith(".md"))
       .map((fileName) => path.join(dir, fileName));
-
-    return filePaths;
   }
+
   private async loadFromDirectory() {
     const filePaths = this.listSourceFiles(this.sourceDir);
     if (filePaths.length === 0) {
@@ -52,6 +55,7 @@ export class VectorStore {
       this.chunks = [];
     }
   }
+
   private splitText(text: string): string[] {
     let i = 0;
     const textChunks: string[] = [];
@@ -83,7 +87,7 @@ export class VectorStore {
   private async runWithConcurrency<T, R>(
     items: T[],
     limit: number,
-    worker: (item: T, index: number) => Promise<R>
+    worker: (item: T, index: number) => Promise<R>,
   ): Promise<R[]> {
     const results: R[] = new Array(items.length);
     let nextIndex = 0;
@@ -107,18 +111,18 @@ export class VectorStore {
       return this.chunks;
     }
 
-    const embedding = new Embedding();
+    const embedder = createSantiEmbedder();
     const textBatches = this.chunkArray(sourceChunks, this.batchSize);
     const totalBatches = textBatches.length;
     let completedBatches = 0;
     console.log(`loading embeddings: ${this.renderProgress(0, totalBatches)}`);
+
     const embeddedBatches = await this.runWithConcurrency(
       textBatches,
       this.concurrency,
       async (batch, batchIndex) => {
         const texts = batch.map((item) => item.text);
-        return 
-        const res = await embedding.embedBatch(texts);
+        const res = await embedder.embedBatch(texts);
         completedBatches += 1;
         console.log(
           `embedding progress ${this.renderProgress(completedBatches, totalBatches)} batch=${batchIndex + 1}`,

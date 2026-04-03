@@ -1,9 +1,13 @@
 import chokidar from "chokidar";
-import { readFile } from "../utils/file.js";
+import { readFile } from "../utils/file";
+import { hash } from "../utils/hash";
+import { AsyncTaskQueue } from "../utils/taskQueue";
 export class FileWatcher {
   private watcher?: ReturnType<typeof chokidar.watch>;
   private files: Set<string>;
   private isReady = false;
+  private metaMap: Map<string, unknown> = new Map();
+  private readonly loadQueue = new AsyncTaskQueue();
   constructor(private watchPath: string) {
     this.files = new Set<string>();
     this.init();
@@ -38,21 +42,34 @@ export class FileWatcher {
       .on("error", (error) => console.error(`❌ 错误: ${error}`))
       .on("ready", async () => {
         console.log(this.files);
-        for (const file of this.files) {
-          await this.loader(file as string);
-        }
+        await Promise.all(
+          [...this.files].map((file) =>
+            this.loadQueue.enqueue(() => this.loader(file as string)),
+          ),
+        );
         this.isReady = true;
         console.log("✅ 初始扫描完成，开始监听");
       });
   }
   private async loader(file: string) {
     const fileContent = await readFile(file as string);
-    console.log(fileContent);
+    const hash = await this.hashConstruct(fileContent as string);
+    
+    this.metaMap.set(file, {
+      hash: hash,
+      content: fileContent,
+    });
+    // console.log(this.metaMap);
   }
-  private async readyLoader(path: string) {
+  private async hashConstruct(text: string) {
+    return hash(text);
+  }
+  private readyLoader(path: string) {
     if (!this.isReady) {
       return;
     }
-    await this.loader(path);
+    void this.loadQueue.enqueue(() => this.loader(path)).catch((err) => {
+      console.error(`❌ 加载失败: ${path}`, err);
+    });
   }
 }

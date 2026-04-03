@@ -13,7 +13,6 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
-    "@qdrant/qdrant-js": "^1.17.0",
     "chokidar": "^5.0.0",
     "dotenv": "^17.3.1",
     "express": "^5.2.1",
