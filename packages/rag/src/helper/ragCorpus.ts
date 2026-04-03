@@ -1,8 +1,9 @@
 /**
- * 监视目录中文本文件：读入 → 分块 → 嵌入 → 写入磁盘缓存，并在内存中维护 metaMap。
+ * RAG 语料索引：监视目录 → 读入 → 分块 → 嵌入 → 磁盘缓存，并维护 metaMap。
+ * 检索见 `RagRetriever`（`ragRetrieval.ts`），此处通过组合委托 `search`。
  *
  * - 加载串行（LOAD_CONCURRENCY），嵌入可并发（EMBED_CONCURRENCY）。
- * - 首轮 `ready` 完成前，`readyLoader` 会直接 return；之后才处理变更。
+ * - 首轮 chokidar `ready` 完成前，`readyLoader` 会直接 return；之后才处理变更。
  */
 
 import chokidar from "chokidar";
@@ -21,6 +22,9 @@ import {
   tryLoadChunksFromCache,
 } from "../utils/ragCache";
 import { createEmbedProgress } from "../utils/embedProgress";
+import { RagRetriever } from "./ragRetrieval.js";
+import type { SearchHit } from "./ragRetrieval.js";
+import type { RagDocumentMeta } from "./ragTypes.js";
 import { AsyncConcurrencyQueue } from "../utils/taskQueue";
 import { chunkText } from "../utils/text";
 
@@ -29,31 +33,58 @@ const LOAD_CONCURRENCY = 1;
 /** 单文件内多 chunk 调用 Ollama 时的并发上限 */
 const EMBED_CONCURRENCY = 5;
 
-type FileMeta = {
-  hash: string;
-  content: string;
-  chunks: CachedChunk[];
-};
+export type { RagDocumentMeta } from "./ragTypes.js";
+export type { SearchHit } from "./ragRetrieval.js";
 
-export class FileWatcher {
+export class RagCorpus {
   private watcher?: ReturnType<typeof chokidar.watch>;
   /** 当前监视到的绝对路径集合 */
   private files: Set<string>;
   /** 首轮扫描是否已结束；未结束时仅收集 files，不执行 readyLoader */
   private isReady = false;
-  /** absPath → 解析结果（供后续检索/API 使用） */
-  private metaMap: Map<string, FileMeta> = new Map();
+  /** 首轮索引完成后 resolve，保证 metaMap 已填充后再检索 */
+  private readonly whenReadyPromise: Promise<void>;
+  private resolveWhenReady!: () => void;
+
+  /** absPath → 单文档索引（供检索 / API 使用） */
+  public metaMap: Map<string, RagDocumentMeta> = new Map();
 
   private readonly loadQueue = new AsyncConcurrencyQueue(LOAD_CONCURRENCY);
   private readonly embedQueue = new AsyncConcurrencyQueue(EMBED_CONCURRENCY);
   private readonly cacheRoot: string;
   private readonly watchPath: string;
+  private readonly retriever: RagRetriever;
 
   constructor(watchPath: string) {
+    this.whenReadyPromise = new Promise<void>((resolve) => {
+      this.resolveWhenReady = resolve;
+    });
     this.watchPath = path.resolve(watchPath);
     this.files = new Set<string>();
     this.cacheRoot = cacheRootForWatch(this.watchPath);
+    this.retriever = new RagRetriever(() => ({
+      indexReady: this.indexReady,
+      metaMap: this.metaMap,
+    }));
     this.init();
+  }
+
+  /**
+   * 首轮索引（chokidar ready + 各文件 loader）是否已完成。
+   * HTTP 服务可先启动，再异步填充 metaMap；未就绪时检索应直接返回「未就绪」，勿在请求里 await 整轮索引。
+   */
+  get indexReady(): boolean {
+    return this.isReady;
+  }
+
+  /** 可选：需要阻塞到索引完成时再调用（例如集成测试），勿用于普通 API handler */
+  whenReady(): Promise<void> {
+    return this.whenReadyPromise;
+  }
+
+  /** 委托给 `RagRetriever` */
+  search(question: string, topK = 5): Promise<SearchHit[]> {
+    return this.retriever.search(question, topK);
   }
 
   /** chokidar 可能给出相对或绝对路径，统一为绝对路径，与 ragCache 的 key 一致 */
@@ -73,6 +104,7 @@ export class FileWatcher {
         stabilityThreshold: 300,
         pollInterval: 100,
       },
+      ignored: [path.join(this.watchPath, ".rag-cache")],
     });
 
     this.watcher
@@ -100,6 +132,7 @@ export class FileWatcher {
           await this.loadQueue.enqueue(() => this.loader(file));
         }
         this.isReady = true;
+        this.resolveWhenReady();
         console.log("✅ 初始扫描完成，开始监听");
       });
   }
@@ -130,7 +163,9 @@ export class FileWatcher {
       const previous = await readCachedChunksForDiff(abs, this.cacheRoot);
       const { slots, toEmbedIndices, reuseCount } = planEmbeddingDiff(rawChunks, previous);
       if (reuseCount > 0) {
-        console.log(`♻️  chunk 复用 ${reuseCount}/${rawChunks.length}，待嵌入 ${toEmbedIndices.length}`);
+        console.log(
+          `♻️  chunk 复用 ${reuseCount}/${rawChunks.length}，待嵌入 ${toEmbedIndices.length}`
+        );
       }
       const progress = createEmbedProgress(abs, toEmbedIndices.length);
       await Promise.all(
@@ -152,7 +187,6 @@ export class FileWatcher {
       chunks,
     });
   }
-
 
   private async handleRemove(abs: string) {
     this.files.delete(abs);
