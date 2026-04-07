@@ -1,5 +1,5 @@
 import path from "path";
-import { RagCorpus } from "./helper/ragCorpus.js";
+import { RagCorpus } from "./rag/ragCorpus.js";
 
 let instance: RagCorpus | null = null;
 

@@ -12,6 +12,7 @@
   {
     "provider": "kimi",
     "base_url": "https://kimi.a7m.com.cn",
+    "base_url_openai": "https://kimi.a7m.com.cn/v1",
     "api": "anthropic-messages",
     "api_key": "sk-cKSenEHkzsCMgEHvLv9lids5zktzX28niWht6y88xGMSyX9s",
     "model": {
