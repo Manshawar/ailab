@@ -8,7 +8,7 @@
 
 import chokidar from "chokidar";
 import path from "path";
-import { embedText } from "../utils/embedding";
+import { embedText } from "../llm/embeddingClient";
 import { readFile } from "../utils/file";
 import { hash } from "../utils/hash";
 import { planEmbeddingDiff } from "../utils/embeddingDiff";

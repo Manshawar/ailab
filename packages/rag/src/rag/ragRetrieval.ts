@@ -3,7 +3,8 @@
  * 与 `RagCorpus` 用组合连接，避免与索引逻辑继承耦合。
  */
 
-import { cosineSimilarity, embedText } from "../utils/embedding";
+import { embedText } from "../llm/embeddingClient";
+import { cosineSimilarity } from "../utils/similarity";
 import type { RagDocumentMeta } from "./ragTypes.js";
 
 export type SearchHit = {

@@ -26,10 +26,10 @@ export class MultiQueryGenerator {
     this.llm = llmPrompt;
     this.question = question;
     this.options = options;
-    this.generate(question, options);
+
   }
 
-  async generate(query: string, options: MultiQueryOptions = {}): Promise<string[]> {
+  async generate(query: string = this.question, options: MultiQueryOptions = this.options): Promise<string[]> {
     const { maxQueries, cache } = options;
 
     const cacheKey = hash(query + maxQueries);

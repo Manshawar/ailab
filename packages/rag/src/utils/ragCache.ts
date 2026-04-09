@@ -8,7 +8,7 @@
 
 import fs from "fs/promises";
 import path from "path";
-import { getEmbedModel } from "./embedding";
+import { getEmbedModel } from "../llm/embeddingClient";
 import { hash as hashString } from "./hash";
 import { CHUNK_DEFAULT_OVERLAP, CHUNK_DEFAULT_SIZE } from "./text";
 
