@@ -8,7 +8,28 @@ const DEFAULT_MULTI_QUERY_OPTIONS: MultiQueryOptions = {
   temperature: 0.3,
   maxTokens: 1000,
 };
+export async function multiQuerySearch({
+  queries,
+  embed,
+  vectorSearch,
+  topK = 5,
+}: {
+  queries: string[];
+  embed: (q: string) => Promise<number[]>;
+  vectorSearch: (embedding: number[], topK: number) => Promise<SearchHit[]>;
+  topK?: number;
+}) {
+  // 1️⃣ 并发 embedding
+  const embeddings = await Promise.all(queries.map((q) => embed(q)));
 
+  // 2️⃣ 并发检索
+  const results = await Promise.all(embeddings.map((e) => vectorSearch(e, topK)));
+
+  // 3️⃣ flatten
+  const merged = results.flat();
+
+  return merged;
+}
 // function mergeHitsByChunk(all: SearchHit[][], topK = 5): SearchHit[] {
 //   const merged = new Map<string, SearchHit>();
 //   for (const hits of all) {
